@@ -22,5 +22,6 @@ void* write_to_memory(void* struct_address);
 void read_from_memory_to_file(FILE* file, void* memory_pointer);
 uint64_t thread_init_for_read(void);
 void* func_sum(void* th_args);
+void i_signal(int32_t signal);
 
 #endif

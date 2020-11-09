@@ -1,10 +1,14 @@
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/mman.h>
 #include <stdint.h>
-#include <pthread.h>
-#include <semaphore.h>
 #include <inttypes.h>
+#include <sys/mman.h>
+#include <pthread.h>
+#include <fcntl.h>
+#include <semaphore.h>
+#include <signal.h>
+#include <unistd.h>
+#include <sys/types.h>
 #include "main.h"
 
 #define MEMORY_SIZE (196 * 1024 * 1024)
@@ -19,20 +23,34 @@ sem_t mutex;
 sem_t resourse;
 uint8_t writers = 0;
 uint8_t readers = 0;
+void* address_del;
 
 
 int main(int arc, char** argv) {
+
+	signal(SIGINT, i_signal);
+
+	puts("Pre allocation \nPress to continue");
+	getchar();
+
 	void* memory_pointer = (void*) START_ADDRESS;
-	memory_pointer = mmap(memory_pointer, MEMORY_SIZE, PROT_READ|PROT_WRITE, MAP_SHARED|MAP_ANONYMOUS, -1, 0);
+	
+	int file = open("./res/file", O_RDWR);
+	ftruncate(file, MEMORY_SIZE);
+
+	memory_pointer = mmap(memory_pointer, MEMORY_SIZE, PROT_READ|PROT_WRITE, MAP_PRIVATE, file, 0);
+	address_del = memory_pointer;
 
 	sem_init(&mutex, 0, 1);
 	sem_init(&resourse, 0, 1);
+
 	if(memory_pointer == MAP_FAILED) {
 		puts("something wrong with memory allocation");
 		exit(1);
 	}
 
-	puts("We alocate the memory\n");
+	puts("After allocation \nPress to continue");
+	getchar();
 
 	while(1) {
 		puts("------ start ------\n");
@@ -49,7 +67,6 @@ int main(int arc, char** argv) {
 		read_from_memory_to_file(f_1, memory_pointer);
 		fclose(f_1);
 
-		puts("We write to the first file\n");
 		FILE* f_2 = fopen("./res/file_2", "wb");
 		if (f_2 == NULL) {
 			puts("Second file error\n");
@@ -60,11 +77,12 @@ int main(int arc, char** argv) {
 		read_from_memory_to_file(f_2, memory_pointer + (66 * 1024 * 1024));
 		fclose(f_2);
 
-		puts("We write to the second file\n");
-
 		uint64_t sum = thread_init_for_read();
-
 		printf(" summ: %"PRIo64"  \n", sum);
+
+		puts("After writtings \nPress to continue");
+		getchar();
+
 		puts("------ end ------\n");
 
 	}
@@ -190,6 +208,13 @@ void* func_sum(void* th_args) {
 	}
 	sem_post(&mutex);
 	return (void*) sum;
+}
+
+void i_signal(int32_t signal) {
+	munmap(address_del, MEMORY_SIZE);
+	puts("After deallocation \nPress to continue");
+	getchar();
+	exit(0);
 }
 
 
