@@ -26,12 +26,16 @@ uint8_t readers = 0;
 void* address_del;
 
 
-int main(int arc, char** argv) {
+int main(int argc, char** argv) {
 
+	if(argc > 1) {
 	signal(SIGINT, i_signal);
+	}
 
+	if(argc > 1) {
 	puts("Pre allocation \nPress to continue");
 	getchar();
+	}
 
 	void* memory_pointer = (void*) START_ADDRESS;
 	
@@ -49,14 +53,19 @@ int main(int arc, char** argv) {
 		exit(1);
 	}
 
+	if(argc > 1) {
 	puts("After allocation \nPress to continue");
 	getchar();
+	}
 
 	while(1) {
 		puts("------ start ------\n");
 		thread_init_for_write(memory_pointer);
 
-		puts("We fill the memory\n");
+		if(argc > 1) {
+		puts("After filling the section with data \nPress to continue");
+		getchar();
+		}
 
 		FILE* f_1 = fopen("./res/file_1", "wb");
 		if (f_1 == NULL){
@@ -80,10 +89,8 @@ int main(int arc, char** argv) {
 		uint64_t sum = thread_init_for_read();
 		printf(" summ: %"PRIo64"  \n", sum);
 
-		puts("After writtings \nPress to continue");
-		getchar();
 
-		puts("------ end ------\n");
+		puts("\n------ end ------\n");
 
 	}
 
