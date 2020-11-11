@@ -83,7 +83,7 @@ int main(int argc, char** argv) {
 		}
 		//puts("----//--//");
 		//printf("%p\n - mem point 1", memory_pointer);
-		read_from_memory_to_file(f_2, memory_pointer + (66 * 1024 * 1024));
+		read_from_memory_to_file(f_2, (void*) ((uint64_t) memory_pointer + (66 * 1024 * 1024)));
 		fclose(f_2);
 
 		uint64_t sum = thread_init_for_read();
@@ -118,8 +118,9 @@ void thread_init_for_write(void* memory_pointer) {
 void* write_to_memory(void* struct_address) {
 	FILE* f_urand = fopen("/dev/urandom", "r");
 	struct portion* part = (struct portion*) struct_address;
-	fread((part -> mem_pointer + (part -> start * part -> size)), 1, part -> size, f_urand);
+	fread((void*) ((uint64_t) part -> mem_pointer + (part -> start * part -> size)), 1, part -> size, f_urand);
 	//printf("%lu\n", sizeof(struct_address));
+	return NULL;
 }
 
 void read_from_memory_to_file(FILE* file, void* memory_pointer) {
@@ -132,7 +133,7 @@ void read_from_memory_to_file(FILE* file, void* memory_pointer) {
 	sem_wait(&resourse);
 	//puts("----//--//");
 	for(uint32_t i = 0; i < (FILE_SIZE / BLOCK_SIZE); i++) {
-		fwrite((memory_pointer + BLOCK_SIZE * i), sizeof(char), BLOCK_SIZE, file);
+		fwrite((void*) ((uint64_t) memory_pointer + BLOCK_SIZE * i), sizeof(char), BLOCK_SIZE, file);
 		//printf("%d\n", i);
 	}
 
@@ -175,7 +176,7 @@ uint64_t thread_init_for_read(void) {
 	uint64_t sum = 0;
 	
 	for(uint8_t i = 0; i < READ_THREAD_NUM; i++) {
-		pthread_join(threads_id[i], res + (i * sizeof(uint64_t)));
+		pthread_join(threads_id[i], (void*)((uint64_t) res + (i * sizeof(uint64_t))));
 	}
 
 	uint64_t* result = (uint64_t*) res;
