@@ -9,7 +9,6 @@
 #include <signal.h>
 #include <unistd.h>
 #include <sys/types.h>
-#include "main.h"
 
 #define MEMORY_SIZE (196 * 1024 * 1024)
 #define START_ADDRESS 0xA240B573
@@ -19,20 +18,38 @@
 #define BLOCK_SIZE 16
 #define READ_THREAD_NUM 110
 
-sem_t mutex;
-sem_t resourse;
-uint8_t writers = 0;
-uint8_t readers = 0;
+struct portion {
+  void *mem_pointer;
+  uint64_t size;
+  uint64_t start;
+};
+
+struct thread_args {
+  FILE *file_d;
+  uint64_t size;
+  uint64_t offset;
+};
+
+void thread_init_for_write(void *memory_pointer);
+void *write_to_memory(void *struct_address);
+void read_from_memory_to_file(FILE *file, void *memory_pointer);
+uint64_t thread_init_for_read(void);
+void *func_sum(void *th_args);
+void i_signal(int32_t signal);
+
+sem_t mutex;  // control access to reader count
+sem_t resourse; // control access to resourse (in our case write to file)
+uint8_t readers = 0; // number of threads reading the resourse
 void *address_del;
 
 int main(int argc, char **argv) {
 
-  if (argc > 1) {
-    signal(SIGINT, i_signal);
+	if(argc > 1) {
+  signal(SIGINT, i_signal);
   }
 
   if (argc > 1) {
-    puts("Pre allocation \nPress to continue");
+     puts("Pre allocation \nPress to continue");
     getchar();
   }
 
@@ -81,8 +98,6 @@ int main(int argc, char **argv) {
       puts("Second file error\n");
       exit(1);
     }
-    // puts("----//--//");
-    // printf("%p\n - mem point 1", memory_pointer);
     read_from_memory_to_file(
         f_2, (void *)((uint64_t)memory_pointer + (66 * 1024 * 1024)));
     fclose(f_2);
@@ -102,9 +117,6 @@ void thread_init_for_write(void *memory_pointer) {
     part->size = RANDOM_THREAD_MEMORY;
     part->start = i;
 
-    // printf("%lu \n", part -> size);
-    // printf("%lu \n", part -> start);
-
     pthread_create(&threads[i], NULL, write_to_memory, part);
   }
 
@@ -118,28 +130,15 @@ void *write_to_memory(void *struct_address) {
   struct portion *part = (struct portion *)struct_address;
   fread((void *)((uint64_t)part->mem_pointer + (part->start * part->size)), 1,
         part->size, f_urand);
-  // printf("%lu\n", sizeof(struct_address));
   return NULL;
 }
 
 void read_from_memory_to_file(FILE *file, void *memory_pointer) {
-  // puts("----//--//");
-  // printf("%p\n - mem point 2", memory_pointer);
-  sem_wait(&mutex);
-  writers++;
-  sem_post(&mutex);
-
   sem_wait(&resourse);
-  // puts("----//--//");
   for (uint32_t i = 0; i < (FILE_SIZE / BLOCK_SIZE); i++) {
     fwrite((void *)((uint64_t)memory_pointer + BLOCK_SIZE * i), sizeof(char),
            BLOCK_SIZE, file);
-    // printf("%d\n", i);
   }
-
-  sem_wait(&mutex);
-  writers--;
-  sem_post(&mutex);
   sem_post(&resourse);
 }
 
@@ -193,13 +192,10 @@ uint64_t thread_init_for_read(void) {
 void *func_sum(void *th_args) {
 
   sem_wait(&mutex);
-  if (writers > 0 || readers == 0) {
-    sem_post(&mutex);
-    sem_wait(&resourse);
-    sem_wait(&mutex);
-  }
-
   readers++;
+  if(readers == 1) {
+  	sem_wait (&resourse);
+  }
   sem_post(&mutex);
 
   struct thread_args *t_args = (struct thread_args *)th_args;
@@ -209,7 +205,6 @@ void *func_sum(void *th_args) {
   fread(var, sizeof(char), t_args->size, t_args->file_d);
   for (uint64_t i = 0; i < t_args->size; i++) {
     sum += var[i];
-    // printf("%lu summ \n", sum);
   }
   free(var);
   sem_wait(&mutex);
